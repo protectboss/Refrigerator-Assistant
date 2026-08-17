@@ -120,12 +120,18 @@
       </header>
       <div class="form card">
         <div class="field">
+          <label class="label" for="f-familycode">家庭共享码</label>
+          <input id="f-familycode" type="text" placeholder="如:wang-jia-2026(至少 4 个字符)" autocomplete="off" />
+        </div>
+        <div class="field">
           <label class="label" for="f-apikey">阿里云百炼 API Key</label>
           <input id="f-apikey" type="password" placeholder="sk-..." autocomplete="off" />
         </div>
       </div>
       <div class="settings-note">
-        Key 只保存在你这台设备的浏览器里,不会上传到任何服务器或代码仓库;调用 AI 时经由你自己的
+        <b>家庭共享:</b>全家设备填同一个共享码,冰箱库存、购物清单就会自动同步;共享码相当于钥匙,
+        请设置一个别人猜不到的(建议带数字和自己家的专属词)。留空则数据只存在本机。<br /><br />
+        <b>API Key:</b>只保存在你这台设备的浏览器里,不会上传到任何服务器或代码仓库;调用 AI 时经由你自己的
         Cloudflare Worker 直接转发给阿里云。获取方式:阿里云百炼控制台 → API-KEY 管理 → 创建。
         AI 对话、拍照识别、小票识别三个功能都需要它。
       </div>

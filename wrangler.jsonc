@@ -1,4 +1,4 @@
-// Cloudflare Workers 部署配置:worker.js 负责 /api 代理,webapp/ 为静态资源
+// Cloudflare Workers 部署配置:worker.js 负责 /api 代理与家庭同步,webapp/ 为静态资源
 {
   "name": "refrigerator-assistant",
   "main": "worker.js",
@@ -6,5 +6,19 @@
   "assets": {
     "directory": "webapp",
     "binding": "ASSETS"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FRIDGE_DO",
+        "class_name": "FridgeStore"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["FridgeStore"]
+    }
+  ]
 }

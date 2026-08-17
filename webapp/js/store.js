@@ -1,10 +1,13 @@
 /**
- * 库存与购物清单的本地存储层(localStorage)。
- * 后续接入云端同步时,只需替换本文件的读写实现。
+ * 库存与购物清单的存储层:localStorage 保证本地即时读写,
+ * 配置了"家庭共享码"后,每个操作会同步上报到云端(Durable Object),
+ * 多台设备共用同一份数据;操作失败会进离线队列,下次联网补发。
  */
 const KEY_ITEMS = 'fridge_items';
 const KEY_HISTORY = 'fridge_history';
 const KEY_SHOPPING = 'shopping_list';
+const KEY_CODE = 'family_code';
+const KEY_QUEUE = 'sync_queue';
 
 /** 临期阈值:剩余 N 天以内视为临期 */
 export const EXPIRING_DAYS = 2;
@@ -62,7 +65,7 @@ export function getItem(id) {
 export function addItem(data) {
   const items = getItems();
   const item = {
-    id: `${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    id: `${Date.now()}_${Math.floor(Math.random() * 100000)}`,
     name: data.name,
     category: data.category,
     location: data.location,
@@ -72,6 +75,7 @@ export function addItem(data) {
   };
   items.push(item);
   write(KEY_ITEMS, items);
+  postOp({ type: 'add', item });
   return item;
 }
 
@@ -81,11 +85,13 @@ export function updateItem(id, patch) {
   if (idx === -1) return;
   items[idx] = Object.assign({}, items[idx], patch);
   write(KEY_ITEMS, items);
+  postOp({ type: 'update', id, patch });
 }
 
 /** 直接删除(误录入的场景),不记入消耗历史 */
 export function deleteItem(id) {
   write(KEY_ITEMS, getItems().filter((it) => it.id !== id));
+  postOp({ type: 'delete', id });
 }
 
 /**
@@ -100,8 +106,10 @@ export function finishItem(id, result) {
   const [item] = items.splice(idx, 1);
   write(KEY_ITEMS, items);
   const history = read(KEY_HISTORY, []);
-  history.push(Object.assign({}, item, { result, finishDate: todayStr() }));
+  const finishDate = todayStr();
+  history.push(Object.assign({}, item, { result, finishDate }));
   write(KEY_HISTORY, history);
+  postOp({ type: 'finish', id, result, finishDate });
 }
 
 /** 给库存项附加展示字段:剩余天数、状态文案与样式级别 */
@@ -143,15 +151,109 @@ export function addShopping(name) {
   if (!list.includes(name)) {
     list.push(name);
     write(KEY_SHOPPING, list);
+    postOp({ type: 'shop_add', name });
   }
 }
 
 export function removeShopping(name) {
   write(KEY_SHOPPING, getShopping().filter((n) => n !== name));
+  postOp({ type: 'shop_remove', name });
 }
 
 export function clearShopping() {
   write(KEY_SHOPPING, []);
+  postOp({ type: 'shop_clear' });
+}
+
+// ---------- 家庭共享同步 ----------
+
+export function getFamilyCode() {
+  return localStorage.getItem(KEY_CODE) || '';
+}
+
+export function setFamilyCode(code) {
+  localStorage.setItem(KEY_CODE, code.trim());
+}
+
+/** 上报一个操作到云端;失败时进离线队列,下次 pullRemote 前补发 */
+function postOp(op) {
+  const code = getFamilyCode();
+  if (!code) return;
+  fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code, op }),
+  }).catch(() => {
+    const queue = read(KEY_QUEUE, []);
+    queue.push(op);
+    write(KEY_QUEUE, queue);
+  });
+}
+
+/** 补发离线期间积压的操作 */
+async function flushQueue(code) {
+  const queue = read(KEY_QUEUE, []);
+  if (queue.length === 0) return;
+  const remaining = [...queue];
+  for (const op of queue) {
+    try {
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code, op }),
+      });
+      if (!res.ok) break;
+      remaining.shift();
+    } catch (e) {
+      break;
+    }
+  }
+  write(KEY_QUEUE, remaining);
+}
+
+/** 拉取云端全量数据并覆盖本地。返回是否成功 */
+export async function pullRemote() {
+  const code = getFamilyCode();
+  if (!code) return false;
+  try {
+    await flushQueue(code);
+    const res = await fetch(`/api/sync?code=${encodeURIComponent(code)}`);
+    if (!res.ok) return false;
+    const state = await res.json();
+    write(KEY_ITEMS, state.items || []);
+    write(KEY_HISTORY, state.history || []);
+    write(KEY_SHOPPING, state.shopping || []);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** 首次开通共享:把本机现有数据与云端做并集合并,然后拉取合并结果 */
+export async function bootstrapShare() {
+  const code = getFamilyCode();
+  if (!code) return false;
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        op: {
+          type: 'bootstrap',
+          state: {
+            items: getItems(),
+            history: read(KEY_HISTORY, []),
+            shopping: getShopping(),
+          },
+        },
+      }),
+    });
+    if (!res.ok) return false;
+    return pullRemote();
+  } catch (e) {
+    return false;
+  }
 }
 
 // ---------- 通知辅助 ----------

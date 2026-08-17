@@ -25,7 +25,10 @@ function toast(msg) {
 
 // ---------- 视图切换 ----------
 
+let currentView = 'inventory';
+
 function switchView(view) {
+  currentView = view;
   if (view !== 'inventory') exitBatchMode();
   $('#view-inventory').classList.toggle('hidden', view !== 'inventory');
   $('#view-recipes').classList.toggle('hidden', view !== 'recipes');
@@ -404,6 +407,7 @@ $('#recipes-wrap').addEventListener('click', (e) => {
 
 $('#open-settings').addEventListener('click', () => {
   $('#f-apikey').value = ai.getApiKey();
+  $('#f-familycode').value = store.getFamilyCode();
   $('#settings-panel').classList.remove('hidden');
 });
 
@@ -411,10 +415,31 @@ $('#settings-back').addEventListener('click', () => {
   $('#settings-panel').classList.add('hidden');
 });
 
-$('#settings-save').addEventListener('click', () => {
+$('#settings-save').addEventListener('click', async () => {
   ai.setApiKey($('#f-apikey').value);
+
+  const newCode = $('#f-familycode').value.trim();
+  if (newCode && newCode.length < 4) {
+    toast('家庭共享码至少 4 个字符');
+    return;
+  }
+  const oldCode = store.getFamilyCode();
+  store.setFamilyCode(newCode);
   $('#settings-panel').classList.add('hidden');
-  toast(ai.getApiKey() ? 'API Key 已保存' : '已清空 API Key');
+
+  if (newCode && newCode !== oldCode) {
+    showLoading('正在开启家庭共享…');
+    const ok = await store.bootstrapShare();
+    hideLoading();
+    toast(ok ? '家庭共享已开启,本机数据已合并到云端' : '共享开通失败,请检查网络后重试');
+    switchView('inventory');
+    return;
+  }
+  if (!newCode && oldCode) {
+    toast('已关闭共享,数据仅保存在本机');
+    return;
+  }
+  toast('设置已保存');
 });
 
 /** 需要 Key 的功能统一走这里:没配置就引导去设置 */
@@ -610,10 +635,26 @@ function checkNotify() {
   store.markNotified();
 }
 
+// ---------- 家庭共享:启动与回到前台时拉取云端数据 ----------
+
+async function syncAndRender() {
+  if (!store.getFamilyCode()) return;
+  const ok = await store.pullRemote();
+  if (ok) {
+    if (currentView === 'inventory') renderInventory();
+    else if (currentView === 'recipes') renderRecipes();
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') syncAndRender();
+});
+
 // ---------- 启动 ----------
 
 renderInventory();
 checkNotify();
+syncAndRender().then(() => checkNotify());
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {
