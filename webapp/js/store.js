@@ -83,6 +83,11 @@ export function updateItem(id, patch) {
   write(KEY_ITEMS, items);
 }
 
+/** 直接删除(误录入的场景),不记入消耗历史 */
+export function deleteItem(id) {
+  write(KEY_ITEMS, getItems().filter((it) => it.id !== id));
+}
+
 /**
  * 结束一个菜品的生命周期并记入历史。
  * result: 'eaten'(吃完了) | 'wasted'(扔掉了)
@@ -143,6 +148,10 @@ export function addShopping(name) {
 
 export function removeShopping(name) {
   write(KEY_SHOPPING, getShopping().filter((n) => n !== name));
+}
+
+export function clearShopping() {
+  write(KEY_SHOPPING, []);
 }
 
 // ---------- 通知辅助 ----------

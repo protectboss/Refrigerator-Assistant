@@ -1,5 +1,5 @@
 /* 缓存应用外壳,支持离线打开;版本号变化时自动清理旧缓存 */
-const CACHE = 'fridge-assistant-v2';
+const CACHE = 'fridge-assistant-v3';
 const ASSETS = [
   './',
   './index.html',

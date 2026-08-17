@@ -219,6 +219,84 @@ main {
   z-index: 6;
 }
 
+/* ---------- 批量管理 ---------- */
+.list-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.item-check {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  pointer-events: none;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.batch-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(49px + env(safe-area-inset-bottom));
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--stroke);
+  z-index: 5;
+}
+
+.batch-link {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 2px;
+  flex-shrink: 0;
+}
+
+.batch-count {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-right: auto;
+}
+
+.batch-btn {
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  color: var(--text-1);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.batch-btn:disabled {
+  opacity: 0.4;
+}
+
+.batch-danger {
+  color: var(--danger);
+}
+
 /* ---------- 底部标签栏 ---------- */
 .tabbar {
   position: fixed;

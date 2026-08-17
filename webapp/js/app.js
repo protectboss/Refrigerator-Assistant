@@ -26,6 +26,7 @@ function toast(msg) {
 // ---------- 视图切换 ----------
 
 function switchView(view) {
+  if (view !== 'inventory') exitBatchMode();
   $('#view-inventory').classList.toggle('hidden', view !== 'inventory');
   $('#view-recipes').classList.toggle('hidden', view !== 'recipes');
   $('#view-chat').classList.toggle('hidden', view !== 'chat');
@@ -45,10 +46,20 @@ document.querySelectorAll('.tab').forEach((t) => {
 
 // ---------- 冰箱库存 ----------
 
+let batchMode = false;
+const batchSelected = new Set();
+
+function exitBatchMode() {
+  batchMode = false;
+  batchSelected.clear();
+  $('#batch-bar').classList.add('hidden');
+}
+
 function renderInventory() {
   const items = store.getDecoratedItems();
   const expired = items.filter((it) => it.level === 'expired').length;
   const expiring = items.filter((it) => it.level === 'expiring').length;
+  if (items.length === 0) exitBatchMode();
 
   const banner = $('#banner');
   if (expired > 0) {
@@ -66,7 +77,21 @@ function renderInventory() {
       <div class="summary-item"><span class="summary-num">${items.length}</span><span class="summary-label">库存</span></div>
       <div class="summary-item"><span class="summary-num ${expiring > 0 ? 'orange' : ''}">${expiring}</span><span class="summary-label">临期</span></div>
       <div class="summary-item"><span class="summary-num ${expired > 0 ? 'red' : ''}">${expired}</span><span class="summary-label">过期</span></div>
+    </div>
+    <div class="list-tools">
+      <button id="batch-toggle" class="link-btn">${batchMode ? '退出批量' : '批量管理'}</button>
     </div>`;
+
+  // 批量模式下隐藏悬浮按钮、显示底部操作栏
+  $('#fab').classList.toggle('hidden', batchMode);
+  $('#scan-fab').classList.toggle('hidden', batchMode);
+  $('#batch-bar').classList.toggle('hidden', !batchMode);
+  $('#batch-count').textContent = `已选 ${batchSelected.size}`;
+  $('#batch-all').textContent =
+    items.length > 0 && batchSelected.size === items.length ? '取消全选' : '全选';
+  ['#batch-eaten', '#batch-wasted', '#batch-delete'].forEach((sel) => {
+    $(sel).disabled = batchSelected.size === 0;
+  });
 
   const list = $('#inventory-list');
   if (items.length === 0) {
@@ -75,6 +100,7 @@ function renderInventory() {
   }
   list.innerHTML = `<div class="list">${items.map((it) => `
     <div class="item card" data-id="${it.id}">
+      ${batchMode ? `<input type="checkbox" class="item-check" ${batchSelected.has(it.id) ? 'checked' : ''} />` : ''}
       <div class="item-main">
         <div class="item-title-row">
           <span class="item-name">${escapeHtml(it.name)}</span>
@@ -88,9 +114,56 @@ function renderInventory() {
     </div>`).join('')}</div>`;
 }
 
+$('#summary').addEventListener('click', (e) => {
+  if (e.target.id === 'batch-toggle') {
+    batchMode = !batchMode;
+    batchSelected.clear();
+    renderInventory();
+  }
+});
+
 $('#inventory-list').addEventListener('click', (e) => {
   const itemEl = e.target.closest('.item');
-  if (itemEl) openSheet(itemEl.dataset.id);
+  if (!itemEl) return;
+  if (batchMode) {
+    const { id } = itemEl.dataset;
+    if (batchSelected.has(id)) batchSelected.delete(id);
+    else batchSelected.add(id);
+    renderInventory();
+  } else {
+    openSheet(itemEl.dataset.id);
+  }
+});
+
+// ---------- 批量操作 ----------
+
+$('#batch-all').addEventListener('click', () => {
+  const items = store.getDecoratedItems();
+  if (batchSelected.size === items.length) batchSelected.clear();
+  else items.forEach((it) => batchSelected.add(it.id));
+  renderInventory();
+});
+
+function batchFinish(result) {
+  const ids = [...batchSelected];
+  if (ids.length === 0) return;
+  ids.forEach((id) => store.finishItem(id, result));
+  exitBatchMode();
+  renderInventory();
+  toast(result === 'eaten' ? `已标记 ${ids.length} 样吃完` : `已记录扔掉 ${ids.length} 样`);
+}
+
+$('#batch-eaten').addEventListener('click', () => batchFinish('eaten'));
+$('#batch-wasted').addEventListener('click', () => batchFinish('wasted'));
+
+$('#batch-delete').addEventListener('click', () => {
+  const ids = [...batchSelected];
+  if (ids.length === 0) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 样吗?删除不计入消耗历史。`)) return;
+  ids.forEach((id) => store.deleteItem(id));
+  exitBatchMode();
+  renderInventory();
+  toast(`已删除 ${ids.length} 样`);
 });
 
 // ---------- 菜品操作菜单 ----------
@@ -294,7 +367,9 @@ function renderRecipes() {
 
   if (shopping.length > 0) {
     html += `
-      <div class="section-title">购物清单<span class="section-sub">买到后点击移除</span></div>
+      <div class="section-title">购物清单<span class="section-sub">买到后点击移除</span>
+        <button class="link-btn" data-clear-shopping style="float:right">全部移除</button>
+      </div>
       <div class="shopping card">${shopping.map((n) => `
         <div class="shopping-item" data-remove="${escapeHtml(n)}">
           <span>${escapeHtml(n)}</span>
@@ -306,6 +381,11 @@ function renderRecipes() {
 }
 
 $('#recipes-wrap').addEventListener('click', (e) => {
+  if (e.target.closest('[data-clear-shopping]')) {
+    store.clearShopping();
+    renderRecipes();
+    return;
+  }
   const buyEl = e.target.closest('[data-buy]');
   if (buyEl && !buyEl.disabled) {
     store.addShopping(buyEl.dataset.buy);
