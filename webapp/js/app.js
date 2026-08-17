@@ -2,6 +2,7 @@ import { KNOWLEDGE, FALLBACK, lookup, suggest } from './shelfLife.js';
 import * as store from './store.js';
 import { recommend } from './recipes.js';
 import * as ai from './ai.js';
+import * as voice from './voice.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -35,6 +36,7 @@ function switchView(view) {
   $('#view-chat').classList.toggle('hidden', view !== 'chat');
   $('#fab').classList.toggle('hidden', view !== 'inventory');
   $('#scan-fab').classList.toggle('hidden', view !== 'inventory');
+  $('#voice-fab').classList.toggle('hidden', view !== 'inventory');
   document.querySelectorAll('.tab').forEach((t) => {
     t.classList.toggle('active', t.dataset.view === view);
   });
@@ -88,6 +90,7 @@ function renderInventory() {
   // 批量模式下隐藏悬浮按钮、显示底部操作栏
   $('#fab').classList.toggle('hidden', batchMode);
   $('#scan-fab').classList.toggle('hidden', batchMode);
+  $('#voice-fab').classList.toggle('hidden', batchMode);
   $('#batch-bar').classList.toggle('hidden', !batchMode);
   $('#batch-count').textContent = `已选 ${batchSelected.size}`;
   $('#batch-all').textContent =
@@ -453,13 +456,15 @@ function requireApiKey() {
 
 // ---------- 拍照 / 小票识别 ----------
 
-function showLoading(text) {
+function showLoading(text, soft) {
   $('#loading-text').textContent = text;
+  $('#loading-mask').classList.toggle('soft', !!soft);
   $('#loading-mask').classList.remove('hidden');
 }
 
 function hideLoading() {
   $('#loading-mask').classList.add('hidden');
+  $('#loading-mask').classList.remove('soft');
 }
 
 $('#scan-fab').addEventListener('click', () => {
@@ -480,25 +485,58 @@ $('#scan-file').addEventListener('change', async () => {
       toast('没有识别到食材,换个角度再拍一张试试');
       return;
     }
-    openScanPanel(names);
+    openConfirmPanel(
+      resolveOps(names.map((name) => ({ kind: 'add', name }))),
+      '识别到这些食材',
+      '取消勾选不需要的,确认后按知识库自动设置保质期放入冰箱。'
+    );
   } catch (e) {
     hideLoading();
     toast(e.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `识别失败:${e.message}`);
   }
 });
 
-function openScanPanel(names) {
-  $('#scan-list').innerHTML = names
-    .map((name, i) => {
-      const kb = lookup(name);
-      const meta = kb ? `${kb.location} · 约 ${kb.days} 天` : `默认冷藏 ${FALLBACK.days} 天`;
-      return `
+// 确认面板:拍照(纯入库)和语音(入库/出库混合)共用
+const KIND_LABEL = { add: '放入', eaten: '吃完', wasted: '扔掉' };
+const KIND_TAG = { add: 'tag-green', eaten: 'tag-gray', wasted: 'tag-red' };
+let pendingOps = [];
+
+/** 补全每条操作的展示信息;出库操作在当前库存里定位具体条目 */
+function resolveOps(ops) {
+  const items = store.getDecoratedItems();
+  return ops.map((op) => {
+    if (op.kind === 'add') {
+      const kb = lookup(op.name);
+      return Object.assign({}, op, {
+        meta: kb ? `${kb.location} · 约 ${kb.days} 天` : `默认冷藏 ${FALLBACK.days} 天`,
+        disabled: false,
+      });
+    }
+    const hit =
+      items.find((it) => it.name === op.name) ||
+      items.find((it) => it.name.includes(op.name) || op.name.includes(it.name));
+    return Object.assign({}, op, {
+      id: hit ? hit.id : null,
+      meta: hit ? `现有:${hit.name}` : '冰箱里没找到,已忽略',
+      disabled: !hit,
+    });
+  });
+}
+
+function openConfirmPanel(ops, title, note) {
+  pendingOps = ops;
+  $('#scan-title').textContent = title;
+  $('#scan-note').textContent = note;
+  $('#scan-list').innerHTML = ops
+    .map(
+      (op, i) => `
         <label class="scan-item">
-          <input type="checkbox" checked data-idx="${i}" data-name="${escapeHtml(name)}" />
-          <span>${escapeHtml(name)}</span>
-          <span class="scan-item-meta">${meta}</span>
-        </label>`;
-    })
+          <input type="checkbox" ${op.disabled ? 'disabled' : 'checked'} data-idx="${i}" />
+          <span class="tag ${KIND_TAG[op.kind]} scan-kind">${KIND_LABEL[op.kind]}</span>
+          <span>${escapeHtml(op.name)}</span>
+          <span class="scan-item-meta">${escapeHtml(op.meta)}</span>
+        </label>`
+    )
     .join('');
   $('#scan-panel').classList.remove('hidden');
 }
@@ -510,24 +548,97 @@ $('#scan-back').addEventListener('click', () => {
 $('#scan-confirm').addEventListener('click', () => {
   const checked = [...document.querySelectorAll('#scan-list input:checked')];
   if (checked.length === 0) {
-    toast('没有勾选任何食材');
+    toast('没有勾选任何操作');
     return;
   }
+  let added = 0;
+  let removed = 0;
   checked.forEach((el) => {
-    const name = el.dataset.name;
-    const kb = lookup(name) || FALLBACK;
-    store.addItem({
-      name,
-      category: kb.category,
-      location: kb.location,
-      expireDate: store.addDays(store.todayStr(), kb.days),
-      advice: kb.advice,
-    });
+    const op = pendingOps[Number(el.dataset.idx)];
+    if (!op || op.disabled) return;
+    if (op.kind === 'add') {
+      const kb = lookup(op.name) || FALLBACK;
+      store.addItem({
+        name: op.name,
+        category: kb.category,
+        location: kb.location,
+        expireDate: store.addDays(store.todayStr(), kb.days),
+        advice: kb.advice,
+      });
+      added += 1;
+    } else if (op.id) {
+      store.finishItem(op.id, op.kind);
+      removed += 1;
+    }
   });
   $('#scan-panel').classList.add('hidden');
-  toast(`已添加 ${checked.length} 样到冰箱`);
+  const parts = [];
+  if (added > 0) parts.push(`放入 ${added} 样`);
+  if (removed > 0) parts.push(`出库 ${removed} 样`);
+  toast(parts.length > 0 ? `已${parts.join(',')}` : '没有可执行的操作');
   switchView('inventory');
 });
+
+// ---------- 按住说话(语音记账) ----------
+
+let voicePressed = false;
+
+$('#voice-fab').addEventListener('pointerdown', async (e) => {
+  e.preventDefault();
+  if (voicePressed) return;
+  if (!requireApiKey()) return;
+  voicePressed = true;
+  try {
+    await voice.startRecording();
+    if (!voicePressed) {
+      voice.cancelRecording();
+      return;
+    }
+    $('#voice-fab').classList.add('recording');
+    showLoading('正在录音,松开手指结束…', true);
+  } catch (err) {
+    voicePressed = false;
+    hideLoading();
+    toast('无法使用麦克风,请检查浏览器权限');
+  }
+});
+
+async function finishVoiceInput() {
+  if (!voicePressed) return;
+  voicePressed = false;
+  $('#voice-fab').classList.remove('recording');
+  try {
+    const rec = await voice.stopRecording();
+    if (!rec) {
+      hideLoading();
+      toast('说话时间太短,按住按钮说完再松手');
+      return;
+    }
+    showLoading('正在识别语音…');
+    const text = await voice.transcribe(rec.dataUrl);
+    if (!text) {
+      hideLoading();
+      toast('没有听清,请再试一次');
+      return;
+    }
+    showLoading('正在理解指令…');
+    const names = store.getDecoratedItems().map((it) => it.name);
+    const ops = await voice.parseVoiceOps(text, names);
+    hideLoading();
+    if (ops.length === 0) {
+      toast(`听到了「${text}」,但没有解析出操作`);
+      return;
+    }
+    openConfirmPanel(resolveOps(ops), '听到这些操作', `你说的是:「${text}」,取消勾选不对的再确认。`);
+  } catch (err) {
+    hideLoading();
+    toast(err.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `语音识别失败:${err.message}`);
+  }
+}
+
+$('#voice-fab').addEventListener('pointerup', finishVoiceInput);
+$('#voice-fab').addEventListener('pointercancel', finishVoiceInput);
+$('#voice-fab').addEventListener('contextmenu', (e) => e.preventDefault());
 
 // ---------- 问问 AI(做饭参谋) ----------
 

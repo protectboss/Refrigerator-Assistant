@@ -202,10 +202,10 @@ main {
   z-index: 6;
 }
 
-#scan-fab {
+#scan-fab,
+#voice-fab {
   position: fixed;
   right: max(20px, calc(50vw - 240px));
-  bottom: calc(142px + env(safe-area-inset-bottom));
   width: 54px;
   height: 54px;
   border-radius: 50%;
@@ -217,6 +217,27 @@ main {
   justify-content: center;
   cursor: pointer;
   z-index: 6;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#scan-fab {
+  bottom: calc(142px + env(safe-area-inset-bottom));
+}
+
+#voice-fab {
+  bottom: calc(208px + env(safe-area-inset-bottom));
+}
+
+#voice-fab.recording {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.scan-kind {
+  flex-shrink: 0;
 }
 
 /* ---------- 批量管理 ---------- */
@@ -712,6 +733,16 @@ main {
   padding: 18px 28px;
   font-size: 14px;
   color: var(--text-1);
+}
+
+/* 录音中:只显示提示不拦截手指(否则松手事件会打到遮罩上) */
+.loading-mask.soft {
+  background: transparent;
+  pointer-events: none;
+}
+
+.loading-mask.soft .loading-box {
+  border: 1px solid var(--stroke);
 }
 
 /* ---------- Toast ---------- */

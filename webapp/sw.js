@@ -1,5 +1,5 @@
 /* 缓存应用外壳,支持离线打开;版本号变化时自动清理旧缓存 */
-const CACHE = 'fridge-assistant-v4';
+const CACHE = 'fridge-assistant-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS = [
   './js/shelfLife.js',
   './js/recipes.js',
   './js/ai.js',
+  './js/voice.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
