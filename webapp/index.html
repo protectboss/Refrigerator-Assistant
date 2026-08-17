@@ -15,7 +15,10 @@
 </head>
 <body>
   <div id="app">
-    <header class="app-header">冰箱助手</header>
+    <header class="app-header">
+      <span>冰箱助手</span>
+      <button id="open-settings" class="header-btn">设置</button>
+    </header>
 
     <main>
       <!-- 冰箱库存 -->
@@ -30,13 +33,30 @@
       <section id="view-recipes" class="view hidden">
         <div id="recipes-wrap"></div>
       </section>
+
+      <!-- 问问 AI -->
+      <section id="view-chat" class="view hidden">
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-bar">
+          <input id="chat-input" type="text" placeholder="问问今天吃什么…" autocomplete="off" />
+          <button id="chat-send">发送</button>
+        </div>
+      </section>
     </main>
 
+    <button id="scan-fab" aria-label="拍照识别添加">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </button>
     <button id="fab" aria-label="添加菜品">+</button>
+    <input id="scan-file" type="file" accept="image/*" class="hidden" />
 
     <nav class="tabbar">
       <button class="tab active" data-view="inventory">冰箱库存</button>
       <button class="tab" data-view="recipes">今日吃什么</button>
+      <button class="tab" data-view="chat">问问AI</button>
     </nav>
 
     <!-- 录入 / 编辑面板 -->
@@ -81,6 +101,42 @@
         <button class="sheet-btn" data-action="edit">编辑</button>
         <button class="sheet-btn sheet-cancel" data-action="cancel">取消</button>
       </div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div id="settings-panel" class="panel hidden">
+      <header class="panel-header">
+        <button id="settings-back" aria-label="返回">‹ 返回</button>
+        <span>设置</span>
+      </header>
+      <div class="form card">
+        <div class="field">
+          <label class="label" for="f-apikey">阿里云百炼 API Key</label>
+          <input id="f-apikey" type="password" placeholder="sk-..." autocomplete="off" />
+        </div>
+      </div>
+      <div class="settings-note">
+        Key 只保存在你这台设备的浏览器里,不会上传到任何服务器或代码仓库;调用 AI 时经由你自己的
+        Cloudflare Worker 直接转发给阿里云。获取方式:阿里云百炼控制台 → API-KEY 管理 → 创建。
+        AI 对话、拍照识别、小票识别三个功能都需要它。
+      </div>
+      <button id="settings-save" class="primary-btn">保存</button>
+    </div>
+
+    <!-- 拍照识别结果确认 -->
+    <div id="scan-panel" class="panel hidden">
+      <header class="panel-header">
+        <button id="scan-back" aria-label="返回">‹ 返回</button>
+        <span>识别到这些食材</span>
+      </header>
+      <div class="settings-note">取消勾选不需要的,确认后按知识库自动设置保质期放入冰箱。</div>
+      <div id="scan-list" class="scan-list card"></div>
+      <button id="scan-confirm" class="primary-btn">添加到冰箱</button>
+    </div>
+
+    <!-- 全屏加载遮罩 -->
+    <div id="loading-mask" class="loading-mask hidden">
+      <div class="loading-box" id="loading-text">正在识别…</div>
     </div>
 
     <div id="toast" class="toast hidden"></div>

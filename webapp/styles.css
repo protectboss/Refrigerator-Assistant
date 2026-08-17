@@ -42,10 +42,23 @@ body {
   position: sticky;
   top: 0;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
   background: var(--bg);
   font-size: 20px;
   font-weight: 700;
+}
+
+.header-btn {
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--text-2);
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 0;
 }
 
 main {
@@ -171,7 +184,7 @@ main {
 .item-date { font-size: 11px; color: var(--text-3); }
 .item-status { flex-shrink: 0; }
 
-/* ---------- 悬浮添加按钮 ---------- */
+/* ---------- 悬浮按钮:拍照识别 + 手动添加 ---------- */
 #fab {
   position: fixed;
   right: max(20px, calc(50vw - 240px));
@@ -185,6 +198,23 @@ main {
   font-size: 28px;
   font-weight: 300;
   line-height: 1;
+  cursor: pointer;
+  z-index: 6;
+}
+
+#scan-fab {
+  position: fixed;
+  right: max(20px, calc(50vw - 240px));
+  bottom: calc(142px + env(safe-area-inset-bottom));
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   z-index: 6;
 }
@@ -451,6 +481,160 @@ main {
 }
 
 .sheet-cancel { color: var(--text-3); }
+
+/* ---------- 问问 AI 聊天页 ---------- */
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 64px;
+}
+
+.chat-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+.chat-user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-ai {
+  align-self: flex-start;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-thinking {
+  color: var(--text-3);
+}
+
+.chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.chat-chip {
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  color: var(--text-2);
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chat-input-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(49px + env(safe-area-inset-bottom));
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--stroke);
+  z-index: 5;
+}
+
+.chat-input-bar input {
+  flex: 1;
+  border: 1px solid var(--stroke);
+  background: var(--card);
+  border-radius: 999px;
+  padding: 9px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  color: var(--text-1);
+}
+
+.chat-input-bar button {
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chat-input-bar button:disabled {
+  opacity: 0.5;
+}
+
+/* ---------- 设置 / 识别确认 ---------- */
+.settings-note {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.7;
+  padding: 12px 4px;
+}
+
+.scan-list {
+  padding: 0 14px;
+  margin-bottom: 8px;
+}
+
+.scan-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--stroke);
+  font-size: 15px;
+}
+
+.scan-item:last-child {
+  border-bottom: none;
+}
+
+.scan-item input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.scan-item-meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ---------- 加载遮罩 ---------- */
+.loading-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(28, 36, 34, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-box {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 18px 28px;
+  font-size: 14px;
+  color: var(--text-1);
+}
 
 /* ---------- Toast ---------- */
 .toast {

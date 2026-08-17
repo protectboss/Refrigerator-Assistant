@@ -1,8 +1,10 @@
-// Cloudflare Workers/Pages 部署配置:纯静态站点,直接发布 webapp/ 目录,无需构建
+// Cloudflare Workers 部署配置:worker.js 负责 /api 代理,webapp/ 为静态资源
 {
   "name": "refrigerator-assistant",
-  "compatibility_date": "2026-08-17",
+  "main": "worker.js",
+  "compatibility_date": "2026-05-03",
   "assets": {
-    "directory": "webapp"
+    "directory": "webapp",
+    "binding": "ASSETS"
   }
 }

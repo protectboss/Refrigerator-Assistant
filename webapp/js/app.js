@@ -1,6 +1,7 @@
 import { KNOWLEDGE, FALLBACK, lookup, suggest } from './shelfLife.js';
 import * as store from './store.js';
 import { recommend } from './recipes.js';
+import * as ai from './ai.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -27,12 +28,15 @@ function toast(msg) {
 function switchView(view) {
   $('#view-inventory').classList.toggle('hidden', view !== 'inventory');
   $('#view-recipes').classList.toggle('hidden', view !== 'recipes');
+  $('#view-chat').classList.toggle('hidden', view !== 'chat');
   $('#fab').classList.toggle('hidden', view !== 'inventory');
+  $('#scan-fab').classList.toggle('hidden', view !== 'inventory');
   document.querySelectorAll('.tab').forEach((t) => {
     t.classList.toggle('active', t.dataset.view === view);
   });
   if (view === 'inventory') renderInventory();
-  else renderRecipes();
+  else if (view === 'recipes') renderRecipes();
+  else renderChat();
 }
 
 document.querySelectorAll('.tab').forEach((t) => {
@@ -314,6 +318,179 @@ $('#recipes-wrap').addEventListener('click', (e) => {
     store.removeShopping(removeEl.dataset.remove);
     renderRecipes();
   }
+});
+
+// ---------- 设置(API Key) ----------
+
+$('#open-settings').addEventListener('click', () => {
+  $('#f-apikey').value = ai.getApiKey();
+  $('#settings-panel').classList.remove('hidden');
+});
+
+$('#settings-back').addEventListener('click', () => {
+  $('#settings-panel').classList.add('hidden');
+});
+
+$('#settings-save').addEventListener('click', () => {
+  ai.setApiKey($('#f-apikey').value);
+  $('#settings-panel').classList.add('hidden');
+  toast(ai.getApiKey() ? 'API Key 已保存' : '已清空 API Key');
+});
+
+/** 需要 Key 的功能统一走这里:没配置就引导去设置 */
+function requireApiKey() {
+  if (ai.getApiKey()) return true;
+  toast('请先在设置里填写阿里云 API Key');
+  $('#f-apikey').value = '';
+  $('#settings-panel').classList.remove('hidden');
+  return false;
+}
+
+// ---------- 拍照 / 小票识别 ----------
+
+function showLoading(text) {
+  $('#loading-text').textContent = text;
+  $('#loading-mask').classList.remove('hidden');
+}
+
+function hideLoading() {
+  $('#loading-mask').classList.add('hidden');
+}
+
+$('#scan-fab').addEventListener('click', () => {
+  if (!requireApiKey()) return;
+  $('#scan-file').value = '';
+  $('#scan-file').click();
+});
+
+$('#scan-file').addEventListener('change', async () => {
+  const file = $('#scan-file').files[0];
+  if (!file) return;
+  showLoading('正在识别图片,请稍候…');
+  try {
+    const dataUrl = await ai.fileToDataUrl(file);
+    const names = await ai.recognizeFood(dataUrl);
+    hideLoading();
+    if (names.length === 0) {
+      toast('没有识别到食材,换个角度再拍一张试试');
+      return;
+    }
+    openScanPanel(names);
+  } catch (e) {
+    hideLoading();
+    toast(e.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `识别失败:${e.message}`);
+  }
+});
+
+function openScanPanel(names) {
+  $('#scan-list').innerHTML = names
+    .map((name, i) => {
+      const kb = lookup(name);
+      const meta = kb ? `${kb.location} · 约 ${kb.days} 天` : `默认冷藏 ${FALLBACK.days} 天`;
+      return `
+        <label class="scan-item">
+          <input type="checkbox" checked data-idx="${i}" data-name="${escapeHtml(name)}" />
+          <span>${escapeHtml(name)}</span>
+          <span class="scan-item-meta">${meta}</span>
+        </label>`;
+    })
+    .join('');
+  $('#scan-panel').classList.remove('hidden');
+}
+
+$('#scan-back').addEventListener('click', () => {
+  $('#scan-panel').classList.add('hidden');
+});
+
+$('#scan-confirm').addEventListener('click', () => {
+  const checked = [...document.querySelectorAll('#scan-list input:checked')];
+  if (checked.length === 0) {
+    toast('没有勾选任何食材');
+    return;
+  }
+  checked.forEach((el) => {
+    const name = el.dataset.name;
+    const kb = lookup(name) || FALLBACK;
+    store.addItem({
+      name,
+      category: kb.category,
+      location: kb.location,
+      expireDate: store.addDays(store.todayStr(), kb.days),
+      advice: kb.advice,
+    });
+  });
+  $('#scan-panel').classList.add('hidden');
+  toast(`已添加 ${checked.length} 样到冰箱`);
+  switchView('inventory');
+});
+
+// ---------- 问问 AI(做饭参谋) ----------
+
+const CHAT_CHIPS = ['今晚吃什么?', '快过期的菜怎么处理?', '来个 15 分钟的快手菜'];
+let chatHistory = [];
+let chatBusy = false;
+
+function inventorySummary() {
+  const items = store.getDecoratedItems();
+  if (items.length === 0) return '用户冰箱目前是空的。';
+  const lines = items.map((it) => `${it.name}(${it.statusText})`).join('、');
+  const shopping = store.getShopping();
+  return (
+    `用户冰箱现有食材:${lines}。` +
+    (shopping.length > 0 ? `购物清单上已有:${shopping.join('、')}。` : '')
+  );
+}
+
+function renderChat() {
+  const box = $('#chat-messages');
+  if (chatHistory.length === 0) {
+    box.innerHTML = `
+      <div class="chat-bubble chat-ai">我是你的做饭参谋,已经看过你的冰箱了。想吃什么类型的菜,或者让我直接推荐?</div>
+      <div class="chat-chips">${CHAT_CHIPS.map(
+        (c) => `<button class="chat-chip">${c}</button>`
+      ).join('')}</div>`;
+  } else {
+    box.innerHTML =
+      chatHistory
+        .map(
+          (m) =>
+            `<div class="chat-bubble ${m.role === 'user' ? 'chat-user' : 'chat-ai'}">${escapeHtml(m.content)}</div>`
+        )
+        .join('') +
+      (chatBusy ? '<div class="chat-bubble chat-ai chat-thinking">正在想菜谱…</div>' : '');
+  }
+  box.scrollTop = box.scrollHeight;
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+async function sendChat(text) {
+  const content = text.trim();
+  if (!content || chatBusy) return;
+  if (!requireApiKey()) return;
+  chatHistory.push({ role: 'user', content });
+  chatBusy = true;
+  $('#chat-send').disabled = true;
+  $('#chat-input').value = '';
+  renderChat();
+  try {
+    const reply = await ai.askChef(chatHistory.slice(-12), inventorySummary());
+    chatHistory.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    chatHistory.pop();
+    toast(e.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `AI 回复失败:${e.message}`);
+  }
+  chatBusy = false;
+  $('#chat-send').disabled = false;
+  renderChat();
+}
+
+$('#chat-send').addEventListener('click', () => sendChat($('#chat-input').value));
+$('#chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendChat($('#chat-input').value);
+});
+$('#chat-messages').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chat-chip');
+  if (chip) sendChat(chip.textContent);
 });
 
 // ---------- 到期通知(打开应用时检查,每天最多一次) ----------
