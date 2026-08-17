@@ -1,0 +1,65 @@
+<view class="page">
+  <block wx:if="{{hasStock}}">
+    <view class="section-title">根据冰箱现有食材推荐</view>
+
+    <view class="rec-list">
+      <view class="rec card" wx:for="{{recs}}" wx:key="name">
+        <view class="rec-head">
+          <text class="rec-name">{{item.name}}</text>
+          <text class="tag tag-orange" wx:if="{{item.usesExpiring}}">消耗临期食材</text>
+          <text class="rec-time">{{item.time}}</text>
+        </view>
+
+        <view class="ing-row">
+          <text class="ing-label">已有</text>
+          <view class="ing-tags">
+            <text class="tag tag-green" wx:for="{{item.have}}" wx:for-item="ing" wx:key="*this">{{ing}}</text>
+          </view>
+        </view>
+
+        <view class="ing-row" wx:if="{{item.missing.length > 0}}">
+          <text class="ing-label">还缺</text>
+          <view class="ing-tags">
+            <text
+              class="tag {{ing.inList ? 'tag-gray' : 'tag-red'}}"
+              wx:for="{{item.missing}}"
+              wx:for-item="ing"
+              wx:key="name"
+              data-name="{{ing.name}}"
+              data-inlist="{{ing.inList}}"
+              bindtap="onAddShopping"
+            >{{ing.name}}{{ing.inList ? ' · 已加购' : ' +'}}</text>
+          </view>
+        </view>
+
+        <text class="rec-brief">{{item.brief}}</text>
+      </view>
+    </view>
+
+    <view class="empty" wx:if="{{recs.length === 0}}">
+      现有食材还配不出菜谱,再添加一些常见食材试试
+    </view>
+
+    <!-- 购物清单 -->
+    <block wx:if="{{shopping.length > 0}}">
+      <view class="section-title">购物清单<text class="section-sub">买到后点击移除</text></view>
+      <view class="shopping card">
+        <view
+          class="shopping-item"
+          wx:for="{{shopping}}"
+          wx:key="*this"
+          data-name="{{item}}"
+          bindtap="onRemoveShopping"
+        >
+          <text>{{item}}</text>
+          <text class="shopping-remove">移除</text>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <view class="empty" wx:else>
+    <view>冰箱还是空的,先去记几样菜</view>
+    <button class="go-add-btn" bindtap="goAdd">去添加菜品</button>
+  </view>
+</view>

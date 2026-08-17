@@ -1,0 +1,60 @@
+<view class="page">
+  <view class="form card">
+    <!-- 名称 + 联想 -->
+    <view class="field">
+      <text class="label">菜品名称</text>
+      <input
+        class="input"
+        placeholder="如:菠菜、土豆、猪肉"
+        value="{{name}}"
+        bindinput="onNameInput"
+        bindblur="onNameBlur"
+      />
+      <view class="suggestions" wx:if="{{suggestions.length > 0}}">
+        <view
+          class="suggestion"
+          wx:for="{{suggestions}}"
+          wx:key="name"
+          data-name="{{item.name}}"
+          bindtap="onSuggestionTap"
+        >
+          <text>{{item.name}}</text>
+          <text class="suggestion-meta">{{item.location}} · 约 {{item.days}} 天</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="kb-hint" wx:if="{{kbHint}}">{{kbHint}}</view>
+
+    <!-- 保存位置 -->
+    <view class="field">
+      <text class="label">保存位置</text>
+      <picker range="{{locations}}" value="{{locationIndex}}" bindchange="onLocationChange">
+        <view class="picker-value">{{locations[locationIndex]}}</view>
+      </picker>
+    </view>
+
+    <!-- 到期日期 -->
+    <view class="field">
+      <text class="label">到期日期</text>
+      <picker mode="date" value="{{expireDate}}" start="{{minDate}}" bindchange="onDateChange">
+        <view class="picker-value">{{expireDate}}</view>
+      </picker>
+    </view>
+
+    <!-- 保存建议 -->
+    <view class="field">
+      <text class="label">保存建议</text>
+      <textarea
+        class="textarea"
+        value="{{advice}}"
+        placeholder="怎么保存更久(选中菜品后自动填写)"
+        bindinput="onAdviceInput"
+        maxlength="100"
+        auto-height
+      />
+    </view>
+  </view>
+
+  <button class="save-btn" bindtap="onSave">{{editId ? '保存修改' : '放入冰箱'}}</button>
+</view>

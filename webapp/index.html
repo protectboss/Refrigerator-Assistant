@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#f7f8f6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="冰箱助手" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>冰箱助手</title>
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">冰箱助手</header>
+
+    <main>
+      <!-- 冰箱库存 -->
+      <section id="view-inventory" class="view">
+        <div id="banner"></div>
+        <div id="notify-tip"></div>
+        <div id="summary"></div>
+        <div id="inventory-list"></div>
+      </section>
+
+      <!-- 今日吃什么 -->
+      <section id="view-recipes" class="view hidden">
+        <div id="recipes-wrap"></div>
+      </section>
+    </main>
+
+    <button id="fab" aria-label="添加菜品">+</button>
+
+    <nav class="tabbar">
+      <button class="tab active" data-view="inventory">冰箱库存</button>
+      <button class="tab" data-view="recipes">今日吃什么</button>
+    </nav>
+
+    <!-- 录入 / 编辑面板 -->
+    <div id="form-panel" class="panel hidden">
+      <header class="panel-header">
+        <button id="form-back" aria-label="返回">‹ 返回</button>
+        <span id="form-title">记一样菜</span>
+      </header>
+      <div class="form card">
+        <div class="field">
+          <label class="label" for="f-name">菜品名称</label>
+          <input id="f-name" type="text" placeholder="如:菠菜、土豆、猪肉" autocomplete="off" />
+          <div id="suggestions" class="suggestions hidden"></div>
+        </div>
+        <div id="kb-hint" class="kb-hint hidden"></div>
+        <div class="field">
+          <label class="label" for="f-location">保存位置</label>
+          <select id="f-location">
+            <option value="冷藏">冷藏</option>
+            <option value="冷冻">冷冻</option>
+            <option value="常温">常温</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label" for="f-date">到期日期</label>
+          <input id="f-date" type="date" />
+        </div>
+        <div class="field">
+          <label class="label" for="f-advice">保存建议</label>
+          <textarea id="f-advice" rows="2" maxlength="100" placeholder="怎么保存更久(选中菜品后自动填写)"></textarea>
+        </div>
+      </div>
+      <button id="form-save" class="primary-btn">放入冰箱</button>
+    </div>
+
+    <!-- 菜品操作菜单 -->
+    <div id="sheet-mask" class="mask hidden">
+      <div class="sheet">
+        <div id="sheet-title" class="sheet-title"></div>
+        <button class="sheet-btn" data-action="eaten">吃完了</button>
+        <button class="sheet-btn" data-action="wasted">扔掉了</button>
+        <button class="sheet-btn" data-action="edit">编辑</button>
+        <button class="sheet-btn sheet-cancel" data-action="cancel">取消</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

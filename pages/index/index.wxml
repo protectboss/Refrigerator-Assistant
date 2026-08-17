@@ -1,0 +1,60 @@
+<view class="page">
+  <!-- 临期/过期提醒横幅 -->
+  <view wx:if="{{expiredCount > 0}}" class="banner banner-red">
+    有 {{expiredCount}} 样菜品已过期,建议尽快检查处理,避免污染冰箱
+  </view>
+  <view wx:elif="{{expiringCount > 0}}" class="banner banner-orange">
+    有 {{expiringCount}} 样菜品即将到期,今明两天优先吃掉它们
+  </view>
+
+  <!-- 概览 -->
+  <view class="summary card" wx:if="{{total > 0}}">
+    <view class="summary-item">
+      <text class="summary-num">{{total}}</text>
+      <text class="summary-label">库存</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-num {{expiringCount > 0 ? 'orange' : ''}}">{{expiringCount}}</text>
+      <text class="summary-label">临期</text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-num {{expiredCount > 0 ? 'red' : ''}}">{{expiredCount}}</text>
+      <text class="summary-label">过期</text>
+    </view>
+  </view>
+
+  <!-- 库存列表:剩余天数少的排在前面 -->
+  <view class="list" wx:if="{{total > 0}}">
+    <view
+      class="item card"
+      wx:for="{{items}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      data-name="{{item.name}}"
+      bindtap="onItemTap"
+    >
+      <view class="item-main">
+        <view class="item-title-row">
+          <text class="item-name">{{item.name}}</text>
+          <text class="tag tag-gray">{{item.category}}</text>
+          <text class="tag tag-gray">{{item.location}}</text>
+        </view>
+        <text class="item-advice">{{item.advice}}</text>
+        <text class="item-date">{{item.addDate}} 放入 · {{item.expireDate}} 到期</text>
+      </view>
+      <view class="item-status">
+        <text
+          class="tag {{item.level === 'expired' ? 'tag-red' : (item.level === 'expiring' ? 'tag-orange' : 'tag-green')}}"
+        >{{item.statusText}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty" wx:else>
+    <view>冰箱还是空的</view>
+    <view>点右下角按钮,把买回来的菜记进来吧</view>
+  </view>
+
+  <!-- 添加按钮 -->
+  <view class="fab" bindtap="onAdd">+</view>
+</view>

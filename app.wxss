@@ -1,0 +1,62 @@
+/* 全局样式:清爽的浅色系,主色为食材绿 */
+page {
+  --primary: #1aa06d;
+  --primary-light: #e5f5ee;
+  --danger: #e5484d;
+  --danger-light: #fdebec;
+  --warning: #e8930c;
+  --warning-light: #fdf3e1;
+  --text-1: #1c2422;
+  --text-2: #5c6664;
+  --text-3: #9aa3a0;
+  --bg: #f7f8f6;
+  --card: #ffffff;
+  --stroke: #eceeec;
+
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 20rpx;
+  border: 1rpx solid var(--stroke);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+}
+
+.tag-green {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.tag-orange {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+.tag-red {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.tag-gray {
+  background: #f1f3f1;
+  color: var(--text-3);
+}
+
+.empty {
+  padding: 120rpx 40rpx;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 26rpx;
+}

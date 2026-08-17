@@ -1,0 +1,32 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/add/add",
+    "pages/recipe/recipe"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#f7f8f6",
+    "navigationBarTitleText": "冰箱助手",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f7f8f6"
+  },
+  "tabBar": {
+    "color": "#9aa3a0",
+    "selectedColor": "#1aa06d",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "冰箱库存"
+      },
+      {
+        "pagePath": "pages/recipe/recipe",
+        "text": "今日吃什么"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

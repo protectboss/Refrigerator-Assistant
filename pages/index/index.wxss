@@ -1,0 +1,118 @@
+.page {
+  padding: 24rpx 24rpx 160rpx;
+}
+
+/* 提醒横幅 */
+.banner {
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  margin-bottom: 20rpx;
+}
+
+.banner-red {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.banner-orange {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+/* 概览 */
+.summary {
+  display: flex;
+  padding: 24rpx 0;
+  margin-bottom: 20rpx;
+}
+
+.summary-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.summary-num {
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.summary-num.orange {
+  color: var(--warning);
+}
+
+.summary-num.red {
+  color: var(--danger);
+}
+
+.summary-label {
+  font-size: 22rpx;
+  color: var(--text-3);
+}
+
+/* 列表 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  padding: 24rpx;
+  gap: 16rpx;
+}
+
+.item-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.item-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.item-advice {
+  font-size: 24rpx;
+  color: var(--text-2);
+}
+
+.item-date {
+  font-size: 22rpx;
+  color: var(--text-3);
+}
+
+.item-status {
+  flex-shrink: 0;
+}
+
+/* 悬浮添加按钮 */
+.fab {
+  position: fixed;
+  right: 40rpx;
+  bottom: 60rpx;
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 56rpx;
+  font-weight: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

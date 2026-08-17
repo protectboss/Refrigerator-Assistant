@@ -1,0 +1,91 @@
+.page {
+  padding: 24rpx;
+}
+
+.form {
+  padding: 8rpx 24rpx;
+}
+
+.field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--stroke);
+}
+
+.field:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-size: 24rpx;
+  color: var(--text-3);
+}
+
+.input,
+.picker-value,
+.textarea {
+  font-size: 30rpx;
+  color: var(--text-1);
+}
+
+.textarea {
+  width: 100%;
+  line-height: 1.6;
+}
+
+/* 联想下拉 */
+.suggestions {
+  position: absolute;
+  top: 110rpx;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: #fff;
+  border: 1rpx solid var(--stroke);
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.suggestion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  border-bottom: 1rpx solid var(--stroke);
+  font-size: 28rpx;
+}
+
+.suggestion:last-child {
+  border-bottom: none;
+}
+
+.suggestion-meta {
+  font-size: 22rpx;
+  color: var(--text-3);
+}
+
+/* 知识库提示 */
+.kb-hint {
+  margin: 8rpx 0;
+  padding: 16rpx 20rpx;
+  background: var(--primary-light);
+  color: var(--primary);
+  border-radius: 12rpx;
+  font-size: 24rpx;
+}
+
+/* 保存按钮 */
+.save-btn {
+  margin-top: 32rpx;
+  background: var(--primary);
+  color: #fff;
+  font-size: 30rpx;
+  border-radius: 999rpx;
+}
+
+.save-btn::after {
+  border: none;
+}
