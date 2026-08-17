@@ -496,25 +496,36 @@ $('#scan-file').addEventListener('change', async () => {
   }
 });
 
-// 确认面板:拍照(纯入库)和语音(入库/出库混合)共用
-const KIND_LABEL = { add: '放入', eaten: '吃完', wasted: '扔掉' };
-const KIND_TAG = { add: 'tag-green', eaten: 'tag-gray', wasted: 'tag-red' };
+// 确认面板:拍照(纯入库)和语音(入库/出库/改期混合)共用
+const KIND_LABEL = { add: '放入', eaten: '吃完', wasted: '扔掉', expire: '改期' };
+const KIND_TAG = { add: 'tag-green', eaten: 'tag-gray', wasted: 'tag-red', expire: 'tag-orange' };
 let pendingOps = [];
 
-/** 补全每条操作的展示信息;出库操作在当前库存里定位具体条目 */
+/** 补全每条操作的展示信息;出库/改期操作在当前库存里定位具体条目 */
 function resolveOps(ops) {
   const items = store.getDecoratedItems();
   return ops.map((op) => {
     if (op.kind === 'add') {
       const kb = lookup(op.name);
       return Object.assign({}, op, {
-        meta: kb ? `${kb.location} · 约 ${kb.days} 天` : `默认冷藏 ${FALLBACK.days} 天`,
+        meta: op.date
+          ? `到期 ${op.date}(语音指定)`
+          : kb
+            ? `${kb.location} · 约 ${kb.days} 天`
+            : `默认冷藏 ${FALLBACK.days} 天`,
         disabled: false,
       });
     }
     const hit =
       items.find((it) => it.name === op.name) ||
       items.find((it) => it.name.includes(op.name) || op.name.includes(it.name));
+    if (op.kind === 'expire') {
+      return Object.assign({}, op, {
+        id: hit ? hit.id : null,
+        meta: hit ? `${hit.name} 到期改为 ${op.date}` : '冰箱里没找到,已忽略',
+        disabled: !hit,
+      });
+    }
     return Object.assign({}, op, {
       id: hit ? hit.id : null,
       meta: hit ? `现有:${hit.name}` : '冰箱里没找到,已忽略',
@@ -553,6 +564,7 @@ $('#scan-confirm').addEventListener('click', () => {
   }
   let added = 0;
   let removed = 0;
+  let redated = 0;
   checked.forEach((el) => {
     const op = pendingOps[Number(el.dataset.idx)];
     if (!op || op.disabled) return;
@@ -562,10 +574,13 @@ $('#scan-confirm').addEventListener('click', () => {
         name: op.name,
         category: kb.category,
         location: kb.location,
-        expireDate: store.addDays(store.todayStr(), kb.days),
+        expireDate: op.date || store.addDays(store.todayStr(), kb.days),
         advice: kb.advice,
       });
       added += 1;
+    } else if (op.kind === 'expire' && op.id) {
+      store.updateItem(op.id, { expireDate: op.date });
+      redated += 1;
     } else if (op.id) {
       store.finishItem(op.id, op.kind);
       removed += 1;
@@ -575,70 +590,79 @@ $('#scan-confirm').addEventListener('click', () => {
   const parts = [];
   if (added > 0) parts.push(`放入 ${added} 样`);
   if (removed > 0) parts.push(`出库 ${removed} 样`);
+  if (redated > 0) parts.push(`改期 ${redated} 样`);
   toast(parts.length > 0 ? `已${parts.join(',')}` : '没有可执行的操作');
   switchView('inventory');
 });
 
-// ---------- 按住说话(语音记账) ----------
+// ---------- 按住说话(库存记账 + 聊天提问共用) ----------
 
-let voicePressed = false;
+/** 给按钮绑定"按住录音、松手转写"的交互;转写文本交给 onText 处理 */
+function bindHoldToTalk(btn, onText) {
+  let pressed = false;
 
-$('#voice-fab').addEventListener('pointerdown', async (e) => {
-  e.preventDefault();
-  if (voicePressed) return;
-  if (!requireApiKey()) return;
-  voicePressed = true;
-  try {
-    await voice.startRecording();
-    if (!voicePressed) {
-      voice.cancelRecording();
-      return;
-    }
-    $('#voice-fab').classList.add('recording');
-    showLoading('正在录音,松开手指结束…', true);
-  } catch (err) {
-    voicePressed = false;
-    hideLoading();
-    toast('无法使用麦克风,请检查浏览器权限');
-  }
-});
-
-async function finishVoiceInput() {
-  if (!voicePressed) return;
-  voicePressed = false;
-  $('#voice-fab').classList.remove('recording');
-  try {
-    const rec = await voice.stopRecording();
-    if (!rec) {
+  btn.addEventListener('pointerdown', async (e) => {
+    e.preventDefault();
+    if (pressed) return;
+    if (!requireApiKey()) return;
+    pressed = true;
+    try {
+      await voice.startRecording();
+      if (!pressed) {
+        voice.cancelRecording();
+        return;
+      }
+      btn.classList.add('recording');
+      showLoading('正在录音,松开手指结束…', true);
+    } catch (err) {
+      pressed = false;
       hideLoading();
-      toast('说话时间太短,按住按钮说完再松手');
-      return;
+      toast('无法使用麦克风,请检查浏览器权限');
     }
-    showLoading('正在识别语音…');
-    const text = await voice.transcribe(rec.dataUrl);
-    if (!text) {
+  });
+
+  const end = async () => {
+    if (!pressed) return;
+    pressed = false;
+    btn.classList.remove('recording');
+    try {
+      const rec = await voice.stopRecording();
+      if (!rec) {
+        hideLoading();
+        toast('说话时间太短,按住按钮说完再松手');
+        return;
+      }
+      showLoading('正在识别语音…');
+      const text = await voice.transcribe(rec.dataUrl);
+      if (!text) {
+        hideLoading();
+        toast('没有听清,请再试一次');
+        return;
+      }
+      await onText(text);
+    } catch (err) {
       hideLoading();
-      toast('没有听清,请再试一次');
-      return;
+      toast(err.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `语音识别失败:${err.message}`);
     }
-    showLoading('正在理解指令…');
-    const names = store.getDecoratedItems().map((it) => it.name);
-    const ops = await voice.parseVoiceOps(text, names);
-    hideLoading();
-    if (ops.length === 0) {
-      toast(`听到了「${text}」,但没有解析出操作`);
-      return;
-    }
-    openConfirmPanel(resolveOps(ops), '听到这些操作', `你说的是:「${text}」,取消勾选不对的再确认。`);
-  } catch (err) {
-    hideLoading();
-    toast(err.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `语音识别失败:${err.message}`);
-  }
+  };
+
+  btn.addEventListener('pointerup', end);
+  btn.addEventListener('pointercancel', end);
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
-$('#voice-fab').addEventListener('pointerup', finishVoiceInput);
-$('#voice-fab').addEventListener('pointercancel', finishVoiceInput);
-$('#voice-fab').addEventListener('contextmenu', (e) => e.preventDefault());
+// 库存页麦克风:解析成入库/出库/改期操作
+bindHoldToTalk($('#voice-fab'), async (text) => {
+  showLoading('正在理解指令…');
+  const names = store.getDecoratedItems().map((it) => it.name);
+  const ops = await voice.parseVoiceOps(text, names, store.todayStr());
+  hideLoading();
+  if (ops.length === 0) {
+    toast(`听到了「${text}」,但没有解析出操作`);
+    return;
+  }
+  openConfirmPanel(resolveOps(ops), '听到这些操作', `你说的是:「${text}」,取消勾选不对的再确认。`);
+});
 
 // ---------- 问问 AI(做饭参谋) ----------
 
@@ -707,6 +731,12 @@ $('#chat-input').addEventListener('keydown', (e) => {
 $('#chat-messages').addEventListener('click', (e) => {
   const chip = e.target.closest('.chat-chip');
   if (chip) sendChat(chip.textContent);
+});
+
+// 聊天页麦克风:转写后直接作为提问发送
+bindHoldToTalk($('#chat-mic'), async (text) => {
+  hideLoading();
+  sendChat(text);
 });
 
 // ---------- 到期通知(打开应用时检查,每天最多一次) ----------

@@ -168,16 +168,26 @@ export async function transcribe(wavDataUrl) {
 
 /**
  * 把口语文本解析成操作列表。
- * @returns {Promise<Array<{kind:'add'|'eaten'|'wasted', name:string}>>}
+ * @returns {Promise<Array<{kind:'add'|'eaten'|'wasted'|'expire', name:string, date?:string}>>}
  */
-export async function parseVoiceOps(text, inventoryNames) {
+export async function parseVoiceOps(text, inventoryNames, todayStr) {
   const prompt =
-    '你是冰箱助手的指令解析器。用户对着冰箱说了一句话,请解析成操作列表,严格输出 JSON:\n' +
-    '{"actions":[{"kind":"add","name":"西红柿"},{"kind":"eaten","name":"菠菜"},{"kind":"wasted","name":"豆腐"}]}\n' +
-    'kind 取值:add=放入冰箱(买了/放入/添加);eaten=吃完取出(吃了/用完/做菜用掉);wasted=扔掉(坏了/扔了/倒掉)。\n' +
+    `今天是 ${todayStr}。你是冰箱助手的指令解析器,把用户的一句话解析成操作列表,严格输出 JSON:\n` +
+    '{"actions":[\n' +
+    ' {"kind":"add","name":"西红柿"},\n' +
+    ' {"kind":"add","name":"猪肉","date":"2026-08-22"},\n' +
+    ' {"kind":"eaten","name":"菠菜"},\n' +
+    ' {"kind":"wasted","name":"豆腐"},\n' +
+    ' {"kind":"expire","name":"土豆","date":"2026-08-19"}\n' +
+    ']}\n' +
+    'kind 取值:\n' +
+    'add=放入冰箱(买了/放入/添加);说了能放几天或到期时间时才带 date,否则不带;\n' +
+    'eaten=吃完取出(吃了/用完/做菜用掉);wasted=扔掉(坏了/扔了/倒掉);\n' +
+    'expire=修改现有食材的保质期/到期日(如"土豆还能放三天""把菠菜改成明天到期"),必须带 date。\n' +
+    `date 一律换算成 YYYY-MM-DD 具体日期:今天是 ${todayStr},"能放三天"=今天加3天,"明天到期"=今天加1天。\n` +
     'name 用中国家庭常用食材简称;说了数量也只输出一条(如"两个西红柿"→一条西红柿)。\n' +
     `当前冰箱里有:${inventoryNames.length > 0 ? inventoryNames.join('、') : '(空)'}。` +
-    'eaten/wasted 的 name 必须从上面的现有食材里选最接近的;冰箱里没有的就不要输出该条。\n' +
+    'eaten/wasted/expire 的 name 必须从上面的现有食材里选最接近的;冰箱里没有的就不要输出该条。\n' +
     '听不出任何操作时输出 {"actions":[]}。只输出 JSON,不要任何其他文字。\n' +
     `用户的话:「${text}」`;
 
@@ -191,11 +201,20 @@ export async function parseVoiceOps(text, inventoryNames) {
     const obj = JSON.parse(match[0]);
     if (!Array.isArray(obj.actions)) return [];
     return obj.actions
-      .map((a) => ({
-        kind: a && a.kind,
-        name: String((a && a.name) || '').trim(),
-      }))
-      .filter((a) => a.name && ['add', 'eaten', 'wasted'].includes(a.kind));
+      .map((a) => {
+        const date = String((a && a.date) || '').trim();
+        return {
+          kind: a && a.kind,
+          name: String((a && a.name) || '').trim(),
+          date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '',
+        };
+      })
+      .filter(
+        (a) =>
+          a.name &&
+          ['add', 'eaten', 'wasted', 'expire'].includes(a.kind) &&
+          (a.kind !== 'expire' || a.date)
+      );
   } catch (e) {
     return [];
   }

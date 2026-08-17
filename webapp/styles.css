@@ -678,6 +678,27 @@ main {
   opacity: 0.5;
 }
 
+.chat-input-bar #chat-mic {
+  flex-shrink: 0;
+  width: 38px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  color: var(--primary);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.chat-input-bar #chat-mic.recording {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
 /* ---------- 设置 / 识别确认 ---------- */
 .settings-note {
   font-size: 12px;
