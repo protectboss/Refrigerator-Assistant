@@ -102,6 +102,45 @@ export async function recognizeFood(dataUrl) {
 }
 
 /**
+ * 按冰箱实时库存让 AI 推荐今日菜谱。
+ * @param {Array<{name:string,statusText:string}>} items 带剩余天数的库存
+ * @returns {Promise<Array<{name,time,brief,use:string[],missing:string[]}>>}
+ */
+export async function recommendRecipes(items) {
+  const inventory = items.map((it) => `${it.name}(${it.statusText})`).join('、');
+  const prompt =
+    '你是家常菜推荐助手。用户冰箱现有食材(含剩余保质天数):\n' +
+    `${inventory}\n` +
+    '请推荐 3 道适合今天做的家常菜,严格输出 JSON:\n' +
+    '{"recipes":[{"name":"酸辣土豆丝","time":"10 分钟","brief":"土豆切丝泡水,大火快炒,出锅前淋醋","use":["土豆"],"missing":["青椒"]}]}\n' +
+    '要求:优先消耗临期或快过期的食材;use 只能从现有食材里选;' +
+    'missing 只列缺少的主料(葱姜蒜、盐、酱油等常见调料不算);' +
+    'brief 是不超过 40 字的做法要点;只输出 JSON,不要任何其他文字。';
+
+  const content = await callChat({
+    model: CHAT_MODEL,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  const match = String(content).match(/\{[\s\S]*\}/);
+  if (!match) return [];
+  try {
+    const obj = JSON.parse(match[0]);
+    if (!Array.isArray(obj.recipes)) return [];
+    return obj.recipes
+      .map((r) => ({
+        name: String((r && r.name) || '').trim(),
+        time: String((r && r.time) || '').trim(),
+        brief: String((r && r.brief) || '').trim(),
+        use: Array.isArray(r && r.use) ? r.use.map(String) : [],
+        missing: Array.isArray(r && r.missing) ? r.missing.map(String) : [],
+      }))
+      .filter((r) => r.name);
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
  * 把用户选择的照片压缩成适合上传的 JPEG data URL。
  * 小票文字较小,保留 1600px 长边以保证 OCR 效果。
  */

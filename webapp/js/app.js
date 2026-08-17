@@ -321,6 +321,19 @@ $('#fab').addEventListener('click', () => openForm(null));
 
 // ---------- 今日吃什么 ----------
 
+/** 缺料标签(可点击加入购物清单),AI 推荐和内置菜谱共用 */
+function missingTag(name, shopping) {
+  const inList = shopping.includes(name);
+  return `<button class="tag ${inList ? 'tag-gray' : 'tag-red'}" data-buy="${escapeHtml(name)}" ${inList ? 'disabled' : ''}>${escapeHtml(name)}${inList ? ' · 已加购' : ' +'}</button>`;
+}
+
+const KEY_AI_RECIPES = 'ai_recipes';
+
+/** 库存指纹:食材名排序拼接,用于判断"推荐后食材是否变过" */
+function inventoryFingerprint(items) {
+  return items.map((it) => it.name).sort().join('|');
+}
+
 function renderRecipes() {
   const wrap = $('#recipes-wrap');
   const items = store.getDecoratedItems();
@@ -344,9 +357,54 @@ function renderRecipes() {
   const shopping = store.getShopping();
   const recs = recommend(stockNames, expiringNames, 5);
 
-  let html = '<div class="section-title">根据冰箱现有食材推荐</div>';
+  // ---- AI 推荐区 ----
+  let aiCache = null;
+  try {
+    aiCache = JSON.parse(localStorage.getItem(KEY_AI_RECIPES) || 'null');
+  } catch (e) {
+    aiCache = null;
+  }
+  const fp = inventoryFingerprint(items);
+
+  let html = `<div class="section-title">AI 按现有食材推荐
+    <button id="ai-recipes-btn" class="link-btn" style="float:right">${aiCache ? '重新推荐' : '让 AI 想想'}</button>
+  </div>`;
+
+  if (aiCache && Array.isArray(aiCache.recipes) && aiCache.recipes.length > 0) {
+    if (aiCache.fp !== fp) {
+      html += '<div class="banner banner-orange">食材有变化,点"重新推荐"获取最新菜谱</div>';
+    }
+    html += `<div class="rec-list">${aiCache.recipes.map((r) => `
+      <div class="rec card">
+        <div class="rec-head">
+          <span class="rec-name">${escapeHtml(r.name)}</span>
+          <span class="tag tag-green">AI</span>
+          ${r.time ? `<span class="rec-time">${escapeHtml(r.time)}</span>` : ''}
+        </div>
+        ${r.use.length > 0 ? `
+        <div class="ing-row">
+          <span class="ing-label">用到</span>
+          <div class="ing-tags">${r.use.map((n) => `<span class="tag tag-green">${escapeHtml(n)}</span>`).join('')}</div>
+        </div>` : ''}
+        ${r.missing.length > 0 ? `
+        <div class="ing-row">
+          <span class="ing-label">还缺</span>
+          <div class="ing-tags">${r.missing.map((n) => missingTag(n, shopping)).join('')}</div>
+        </div>` : ''}
+        ${r.brief ? `<div class="rec-brief">${escapeHtml(r.brief)}</div>` : ''}
+      </div>`).join('')}</div>`;
+    if (aiCache.at) {
+      html += `<div class="section-title" style="font-weight:400">推荐于 ${escapeHtml(aiCache.at)}</div>`;
+    }
+  } else {
+    html +=
+      '<div class="settings-note">点"让 AI 想想",千问会根据冰箱里的菜(优先消耗临期食材)推荐今天做什么,不受内置菜谱库限制。</div>';
+  }
+
+  // ---- 内置菜谱区(无网络兜底) ----
+  html += '<div class="section-title" style="margin-top:16px">内置菜谱匹配</div>';
   if (recs.length === 0) {
-    html += '<div class="empty">现有食材还配不出菜谱,再添加一些常见食材试试</div>';
+    html += '<div class="empty">现有食材还配不出内置菜谱,试试上面的 AI 推荐</div>';
   } else {
     html += `<div class="rec-list">${recs.map((r) => `
       <div class="rec card">
@@ -362,10 +420,7 @@ function renderRecipes() {
         ${r.missing.length > 0 ? `
         <div class="ing-row">
           <span class="ing-label">还缺</span>
-          <div class="ing-tags">${r.missing.map((n) => {
-            const inList = shopping.includes(n);
-            return `<button class="tag ${inList ? 'tag-gray' : 'tag-red'}" data-buy="${escapeHtml(n)}" ${inList ? 'disabled' : ''}>${escapeHtml(n)}${inList ? ' · 已加购' : ' +'}</button>`;
-          }).join('')}</div>
+          <div class="ing-tags">${r.missing.map((n) => missingTag(n, shopping)).join('')}</div>
         </div>` : ''}
         <div class="rec-brief">${escapeHtml(r.brief)}</div>
       </div>`).join('')}</div>`;
@@ -386,7 +441,39 @@ function renderRecipes() {
   wrap.innerHTML = html;
 }
 
+/** 让 AI 根据当前库存重新推荐,并缓存结果与库存指纹 */
+async function refreshAiRecipes() {
+  if (!requireApiKey()) return;
+  const items = store.getDecoratedItems();
+  showLoading('AI 正在想今天吃什么…');
+  try {
+    const recipes = await ai.recommendRecipes(items);
+    hideLoading();
+    if (recipes.length === 0) {
+      toast('AI 没有给出有效推荐,请再试一次');
+      return;
+    }
+    const now = new Date();
+    localStorage.setItem(
+      KEY_AI_RECIPES,
+      JSON.stringify({
+        fp: inventoryFingerprint(items),
+        recipes,
+        at: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      })
+    );
+    renderRecipes();
+  } catch (err) {
+    hideLoading();
+    toast(err.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `AI 推荐失败:${err.message}`);
+  }
+}
+
 $('#recipes-wrap').addEventListener('click', (e) => {
+  if (e.target.closest('#ai-recipes-btn')) {
+    refreshAiRecipes();
+    return;
+  }
   if (e.target.closest('[data-clear-shopping]')) {
     store.clearShopping();
     renderRecipes();
