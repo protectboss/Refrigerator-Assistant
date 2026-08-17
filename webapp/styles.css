@@ -524,6 +524,25 @@ main {
   border-top: 1px solid var(--stroke);
 }
 
+/* 菜谱卡片底部的教程链接行 */
+.rec-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rec-links a.tag {
+  text-decoration: none;
+}
+
+.detail-body {
+  padding: 18px;
+  font-size: 14px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .shopping { padding: 0 14px; margin-bottom: 16px; }
 
 .shopping-item {

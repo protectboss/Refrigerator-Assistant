@@ -321,6 +321,16 @@ $('#fab').addEventListener('click', () => openForm(null));
 
 // ---------- 今日吃什么 ----------
 
+/** 菜谱卡片底部:详细做法 + B站/小红书教程直达 */
+function recipeLinks(name) {
+  const q = encodeURIComponent(name);
+  return `<div class="rec-links">
+    <button class="tag tag-green" data-detail="${escapeHtml(name)}">详细做法</button>
+    <a class="tag tag-gray" href="https://search.bilibili.com/all?keyword=${q}" target="_blank" rel="noopener">B站教程</a>
+    <a class="tag tag-gray" href="https://www.xiaohongshu.com/search_result?keyword=${q}" target="_blank" rel="noopener">小红书</a>
+  </div>`;
+}
+
 /** 缺料标签(可点击加入购物清单),AI 推荐和内置菜谱共用 */
 function missingTag(name, shopping) {
   const inList = shopping.includes(name);
@@ -392,6 +402,7 @@ function renderRecipes() {
           <div class="ing-tags">${r.missing.map((n) => missingTag(n, shopping)).join('')}</div>
         </div>` : ''}
         ${r.brief ? `<div class="rec-brief">${escapeHtml(r.brief)}</div>` : ''}
+        ${recipeLinks(r.name)}
       </div>`).join('')}</div>`;
     if (aiCache.at) {
       html += `<div class="section-title" style="font-weight:400">推荐于 ${escapeHtml(aiCache.at)}</div>`;
@@ -423,6 +434,7 @@ function renderRecipes() {
           <div class="ing-tags">${r.missing.map((n) => missingTag(n, shopping)).join('')}</div>
         </div>` : ''}
         <div class="rec-brief">${escapeHtml(r.brief)}</div>
+        ${recipeLinks(r.name)}
       </div>`).join('')}</div>`;
   }
 
@@ -469,7 +481,50 @@ async function refreshAiRecipes() {
   }
 }
 
+// ---------- 详细做法(AI 联网总结,按菜名缓存) ----------
+
+const KEY_RECIPE_DETAILS = 'recipe_details';
+
+async function showRecipeDetail(name) {
+  let cache = {};
+  try {
+    cache = JSON.parse(localStorage.getItem(KEY_RECIPE_DETAILS) || '{}');
+  } catch (e) {
+    cache = {};
+  }
+  if (!cache[name]) {
+    if (!requireApiKey()) return;
+    showLoading('AI 正在查找教程并总结…');
+    try {
+      const text = await ai.recipeDetail(name);
+      hideLoading();
+      if (!text) {
+        toast('没有拿到做法,请再试一次');
+        return;
+      }
+      cache[name] = text;
+      localStorage.setItem(KEY_RECIPE_DETAILS, JSON.stringify(cache));
+    } catch (err) {
+      hideLoading();
+      toast(err.code === 'NO_KEY' ? '请先在设置里填写 API Key' : `获取做法失败:${err.message}`);
+      return;
+    }
+  }
+  $('#detail-title').textContent = name;
+  $('#detail-body').textContent = cache[name];
+  $('#detail-panel').classList.remove('hidden');
+}
+
+$('#detail-back').addEventListener('click', () => {
+  $('#detail-panel').classList.add('hidden');
+});
+
 $('#recipes-wrap').addEventListener('click', (e) => {
+  const detailEl = e.target.closest('[data-detail]');
+  if (detailEl) {
+    showRecipeDetail(detailEl.dataset.detail);
+    return;
+  }
   if (e.target.closest('#ai-recipes-btn')) {
     refreshAiRecipes();
     return;

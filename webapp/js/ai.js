@@ -141,6 +141,27 @@ export async function recommendRecipes(items) {
 }
 
 /**
+ * 联网搜索并总结一道菜的详细做法(enable_search 让千问检索网络教程)。
+ */
+export async function recipeDetail(dishName) {
+  const content = await callChat({
+    model: CHAT_MODEL,
+    enable_search: true,
+    messages: [
+      {
+        role: 'user',
+        content:
+          `请参考网络上的家常做法教程,总结「${dishName}」的详细做法。` +
+          '格式:第一行列主料和大致用量;然后分步骤,每行一步(1. 2. 3. …),每步一句话;' +
+          '最后给 1-2 条关键技巧,以"技巧:"开头。' +
+          '纯文本输出,不要使用 Markdown 符号,总共不超过 250 字。',
+      },
+    ],
+  });
+  return String(content || '').trim();
+}
+
+/**
  * 把用户选择的照片压缩成适合上传的 JPEG data URL。
  * 小票文字较小,保留 1600px 长边以保证 OCR 效果。
  */
