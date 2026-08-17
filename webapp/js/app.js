@@ -820,8 +820,28 @@ $('#chat-messages').addEventListener('click', (e) => {
   if (chip) sendChat(chip.textContent);
 });
 
-// 聊天页麦克风:转写后直接作为提问发送
-bindHoldToTalk($('#chat-mic'), async (text) => {
+// 聊天输入:微信式语音/键盘切换,偏好记住在本机
+const KEY_CHAT_MODE = 'chat_input_mode';
+let chatVoiceMode = localStorage.getItem(KEY_CHAT_MODE) === 'voice';
+
+function applyChatInputMode() {
+  $('#chat-input').classList.toggle('hidden', chatVoiceMode);
+  $('#chat-send').classList.toggle('hidden', chatVoiceMode);
+  $('#chat-hold').classList.toggle('hidden', !chatVoiceMode);
+  $('#icon-to-voice').classList.toggle('hidden', chatVoiceMode);
+  $('#icon-to-keyboard').classList.toggle('hidden', !chatVoiceMode);
+}
+
+$('#chat-mode-toggle').addEventListener('click', () => {
+  chatVoiceMode = !chatVoiceMode;
+  localStorage.setItem(KEY_CHAT_MODE, chatVoiceMode ? 'voice' : 'text');
+  applyChatInputMode();
+});
+
+applyChatInputMode();
+
+// 按住说话长条:转写后直接作为提问发送
+bindHoldToTalk($('#chat-hold'), async (text) => {
   hideLoading();
   sendChat(text);
 });

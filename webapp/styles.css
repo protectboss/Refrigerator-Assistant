@@ -678,7 +678,7 @@ main {
   opacity: 0.5;
 }
 
-.chat-input-bar #chat-mic {
+.chat-input-bar #chat-mode-toggle {
   flex-shrink: 0;
   width: 38px;
   padding: 0;
@@ -687,16 +687,34 @@ main {
   justify-content: center;
   background: var(--card);
   border: 1px solid var(--stroke);
-  color: var(--primary);
+  color: var(--text-2);
+}
+
+/* 微信式按住说话长条:占满输入框的位置 */
+.chat-input-bar #chat-hold {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  color: var(--text-1);
+  font-weight: 500;
+  padding: 9px 0;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
-.chat-input-bar #chat-mic.recording {
+.chat-input-bar #chat-hold.recording {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+}
+
+.chat-input-bar #chat-hold.recording span {
+  display: none;
+}
+
+.chat-input-bar #chat-hold.recording::after {
+  content: '松开 发送';
 }
 
 /* ---------- 设置 / 识别确认 ---------- */

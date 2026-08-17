@@ -38,15 +38,24 @@
       <section id="view-chat" class="view hidden">
         <div id="chat-messages" class="chat-messages"></div>
         <div class="chat-input-bar">
-          <button id="chat-mic" aria-label="按住说话提问">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button id="chat-mode-toggle" aria-label="切换语音或键盘输入">
+            <svg id="icon-to-voice" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
               <line x1="12" y1="19" x2="12" y2="23"/>
             </svg>
+            <svg id="icon-to-keyboard" class="hidden" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="6" y1="9" x2="6" y2="9.01"/>
+              <line x1="10" y1="9" x2="10" y2="9.01"/>
+              <line x1="14" y1="9" x2="14" y2="9.01"/>
+              <line x1="18" y1="9" x2="18" y2="9.01"/>
+              <line x1="7" y1="15" x2="17" y2="15"/>
+            </svg>
           </button>
           <input id="chat-input" type="text" placeholder="问问今天吃什么…" autocomplete="off" />
           <button id="chat-send">发送</button>
+          <button id="chat-hold" class="hidden"><span>按住 说话</span></button>
         </div>
       </section>
     </main>
