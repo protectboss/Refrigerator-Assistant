@@ -1,0 +1,8 @@
+// Cloudflare Workers/Pages 部署配置:纯静态站点,直接发布 webapp/ 目录,无需构建
+{
+  "name": "refrigerator-assistant",
+  "compatibility_date": "2026-08-17",
+  "assets": {
+    "directory": "webapp"
+  }
+}
