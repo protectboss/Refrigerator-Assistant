@@ -327,8 +327,25 @@ function recipeLinks(name) {
   return `<div class="rec-links">
     <button class="tag tag-green" data-detail="${escapeHtml(name)}">详细做法</button>
     <a class="tag tag-gray" href="https://search.bilibili.com/all?keyword=${q}" target="_blank" rel="noopener">B站教程</a>
-    <a class="tag tag-gray" href="https://www.xiaohongshu.com/search_result?keyword=${q}" target="_blank" rel="noopener">小红书</a>
+    <button class="tag tag-gray" data-xhs="${escapeHtml(name)}">小红书</button>
   </div>`;
+}
+
+/**
+ * 打开小红书:优先用应用协议唤起 App 内搜索;
+ * 约 1 秒内页面没被切走(App 未安装/未唤起)则回退网页版。
+ */
+function openXiaohongshu(name) {
+  const q = encodeURIComponent(name);
+  const fallback = setTimeout(() => {
+    window.open(`https://www.xiaohongshu.com/search_result/?keyword=${q}`, '_blank', 'noopener');
+  }, 1000);
+  const cancel = () => {
+    if (document.hidden) clearTimeout(fallback);
+  };
+  document.addEventListener('visibilitychange', cancel, { once: true });
+  window.addEventListener('pagehide', () => clearTimeout(fallback), { once: true });
+  window.location.href = `xhsdiscover://search/result?keyword=${q}`;
 }
 
 /** 缺料标签(可点击加入购物清单),AI 推荐和内置菜谱共用 */
@@ -523,6 +540,11 @@ $('#recipes-wrap').addEventListener('click', (e) => {
   const detailEl = e.target.closest('[data-detail]');
   if (detailEl) {
     showRecipeDetail(detailEl.dataset.detail);
+    return;
+  }
+  const xhsEl = e.target.closest('[data-xhs]');
+  if (xhsEl) {
+    openXiaohongshu(xhsEl.dataset.xhs);
     return;
   }
   if (e.target.closest('#ai-recipes-btn')) {
